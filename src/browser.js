@@ -156,10 +156,71 @@ class BrowserBot {
             logger.info(`已在房间 ${roomName}，跳过进入`);
             return;
         }
-        const roomSelector = `.hallRoomTitle:has-text("${roomName}")`;
+
+        // 策略1: 先确保在大厅页面，然后通过 getRoomList 获取房间 ID，再用 URL 直接导航
         try {
-            await this.page.waitForSelector(roomSelector, { timeout: 10000 });
-            await this.page.click(roomSelector, { force: true });
+            // 确保当前在大厅页面，以便获取房间列表
+            const currentUrl = this.page.url();
+            if (!currentUrl.includes('/hall')) {
+                logger.info('当前不在大厅页面，先导航到大厅获取房间列表');
+                await this.page.goto('https://nichijou.cn/hall');
+                await this.page.waitForLoadState('networkidle');
+                await this.dismissOverlays();
+            }
+
+            const rooms = await this.getRoomList();
+            const matchedRoom = rooms.find(r => r.name === roomName);
+            if (matchedRoom && matchedRoom.id) {
+                logger.info(`通过名称匹配到房间 ID=${matchedRoom.id}，使用 URL 直接进入`);
+                await this.enterRoomById(matchedRoom.id);
+                this.currentRoomName = roomName;
+                return;
+            }
+            logger.warn(`在大厅未找到名称为 "${roomName}" 的房间，可用房间: ${rooms.map(r => r.name).join(', ')}`);
+        } catch (err) {
+            logger.warn(`获取房间列表失败: ${err.message}`);
+        }
+
+        // 策略2: 如果 getRoomList 失败，尝试直接导航到大厅并等待房间卡片加载后重试
+        try {
+            logger.info('尝试重新加载大厅页面...');
+            await this.page.goto('https://nichijou.cn/hall');
+            await this.page.waitForLoadState('networkidle');
+            await this.dismissOverlays();
+            await this.page.waitForSelector('.hallRoomItemCard', { timeout: 20000 });
+
+            const rooms = await this.getRoomList();
+            const matchedRoom = rooms.find(r => r.name === roomName);
+            if (matchedRoom && matchedRoom.id) {
+                logger.info(`重新加载大厅后匹配到房间 ID=${matchedRoom.id}，使用 URL 直接进入`);
+                await this.enterRoomById(matchedRoom.id);
+                this.currentRoomName = roomName;
+                return;
+            }
+        } catch (err2) {
+            logger.warn(`重新加载大厅后仍无法获取房间列表: ${err2.message}`);
+        }
+
+        // 策略3: 最后的回退 - 尝试通过遍历 DOM 点击房间卡片
+        try {
+            logger.info('尝试通过点击房间卡片进入...');
+            await this.page.waitForSelector('.hallRoomItemCard', { timeout: 15000 });
+            const cards = await this.page.$$('.hallRoomItemCard');
+            let clicked = false;
+            for (const card of cards) {
+                const titleEl = await card.$('.hallRoomTitle p');
+                if (titleEl) {
+                    const text = await titleEl.innerText();
+                    if (text.trim() === roomName) {
+                        await card.click({ force: true });
+                        clicked = true;
+                        break;
+                    }
+                }
+            }
+            if (!clicked) {
+                throw new Error(`未找到名称为 "${roomName}" 的房间卡片`);
+            }
             await this.page.waitForSelector('.roomInfoTitle', { timeout: 20000 });
         } catch (err) {
             if (retryCount < 2) {
@@ -167,7 +228,7 @@ class BrowserBot {
                 await this.page.waitForTimeout(2000);
                 return this.enterRoomByName(roomName, retryCount + 1);
             } else {
-                throw new Error(`进入房间 ${roomName} 失败`);
+                throw new Error(`进入房间 ${roomName} 失败，已重试 3 次`);
             }
         }
         await this.dismissOverlays();
@@ -192,6 +253,9 @@ class BrowserBot {
     }
 
     async enterRoom(roomId = null, roomName = null) {
+        const targetName = roomName || config.DEFAULT_ROOM_NAME;
+
+        // 如果有 roomId，优先使用 URL 直接导航（最可靠）
         if (roomId !== null) {
             try {
                 await this.enterRoomById(roomId);
@@ -200,7 +264,32 @@ class BrowserBot {
                 logger.warn(`通过ID ${roomId} 进入房间最终失败: ${err.message}，将尝试使用名称`);
             }
         }
-        const targetName = roomName || config.DEFAULT_ROOM_NAME;
+
+        // 没有 roomId 时，先确保在大厅页面，然后通过名称获取房间 ID
+        try {
+            // 确保当前在大厅页面，以便 getRoomList 能正常工作
+            const currentUrl = this.page.url();
+            if (!currentUrl.includes('/hall')) {
+                logger.info('当前不在大厅页面，先导航到大厅获取房间列表');
+                await this.page.goto('https://nichijou.cn/hall');
+                await this.page.waitForLoadState('networkidle');
+                await this.dismissOverlays();
+            }
+
+            const rooms = await this.getRoomList();
+            const matchedRoom = rooms.find(r => r.name === targetName);
+            if (matchedRoom && matchedRoom.id) {
+                logger.info(`通过名称 "${targetName}" 匹配到房间 ID=${matchedRoom.id}，使用 URL 直接进入`);
+                await this.enterRoomById(matchedRoom.id);
+                this.currentRoomName = targetName;
+                return;
+            }
+            logger.warn(`在大厅未找到名称为 "${targetName}" 的房间`);
+        } catch (err) {
+            logger.warn(`获取房间列表失败: ${err.message}`);
+        }
+
+        // 最后回退：通过 enterRoomByName 尝试（它内部也有重试和导航到大厅的逻辑）
         await this.enterRoomByName(targetName);
     }
 
