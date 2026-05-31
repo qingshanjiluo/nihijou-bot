@@ -134,12 +134,11 @@ async function executeToolCall(bot, toolCall) {
             const reply = await executeCommand(bot, `/play ${parsedArgs.keyword}`);
             return { success: true, result: reply };
         case 'change_room':
-            // 先点击返回大厅按钮
-            await bot.page.click('#btnJ', { force: true });
-            await bot.page.waitForSelector('.hallRoomList', { timeout: 10000 });
             if (parsedArgs.room_id !== undefined) {
+                // 有 room_id 时直接 URL 导航（最可靠）
                 await bot.enterRoomById(parsedArgs.room_id);
             } else if (parsedArgs.room_name) {
+                // 有 room_name 时通过名称查找并进入
                 await bot.enterRoomByName(parsedArgs.room_name);
             } else {
                 throw new Error('缺少 room_id 或 room_name');

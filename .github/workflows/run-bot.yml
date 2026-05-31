@@ -3,7 +3,10 @@ name: Run Nichijou Bot
 on:
   workflow_dispatch:          # 手动触发
   schedule:
-    - cron: '0 */2 * * *'    # 每2小时一次
+    # 北京时间 6:00-18:00，每2小时触发一次
+    # 对应 UTC 时间：22:00, 0:00, 2:00, 4:00, 6:00, 8:00
+    # 即北京时间：6:00, 8:00, 10:00, 12:00, 14:00, 16:00
+    - cron: '0 22,0,2,4,6,8 * * *'
 
 jobs:
   bot:
@@ -11,7 +14,7 @@ jobs:
     concurrency:
       group: nichijou-bot
       cancel-in-progress: false
-    timeout-minutes: 240
+    timeout-minutes: 130   # 2小时 + 10分钟缓冲
 
     steps:
       - name: Checkout code
@@ -46,7 +49,7 @@ jobs:
           echo "REPLY_COOLDOWN_SEC=${{ secrets.REPLY_COOLDOWN_SEC || '5' }}" >> .env
           echo "MAX_CONTEXT_MESSAGES=${{ secrets.MAX_CONTEXT_MESSAGES || '20' }}" >> .env
           echo "PLAN_DEFAULT_WAIT_SEC=${{ secrets.PLAN_DEFAULT_WAIT_SEC || '20' }}" >> .env
-          echo "RUN_DURATION_SEC=${{ secrets.RUN_DURATION_SEC || '0' }}" >> .env
+          echo "RUN_DURATION_SEC=${{ secrets.RUN_DURATION_SEC || '6900' }}" >> .env  # 约1小时55分钟
           echo "REPLY_TO_ALL=${{ secrets.REPLY_TO_ALL || 'true' }}" >> .env
 
       - name: Run bot
