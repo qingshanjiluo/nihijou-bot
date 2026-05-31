@@ -14,7 +14,12 @@ module.exports = {
     BOT_AVATAR_ID: parseInt(process.env.BOT_AVATAR_ID || '32'),
 
     // 房间配置
-    DEFAULT_ROOM_ID: process.env.DEFAULT_ROOM_ID ? parseInt(process.env.DEFAULT_ROOM_ID) : null,
+    DEFAULT_ROOM_ID: (() => {
+        const raw = process.env.DEFAULT_ROOM_ID;
+        if (!raw) return null;
+        const parsed = parseInt(raw);
+        return !isNaN(parsed) && parsed > 0 ? parsed : null;
+    })(),
     DEFAULT_ROOM_NAME: process.env.DEFAULT_ROOM_NAME || '東雲研究所',
 
     // 浏览器

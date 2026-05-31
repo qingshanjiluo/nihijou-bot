@@ -122,6 +122,11 @@ class BrowserBot {
     }
 
     async enterRoomById(roomId, retryCount = 0) {
+        // 验证 roomId 是有效的正整数
+        if (!roomId || isNaN(roomId) || roomId <= 0) {
+            logger.warn(`无效的房间ID: ${roomId}，无法通过ID进入`);
+            throw new Error(`Invalid roomId: ${roomId}`);
+        }
         logger.info(`通过ID进入房间: ${roomId} (尝试 ${retryCount + 1}/3)`);
         if (await this.isInRoom() && this.page.url().includes(`id=${roomId}`)) {
             logger.info(`已在房间 ID=${roomId}，跳过进入`);
@@ -255,13 +260,20 @@ class BrowserBot {
     async enterRoom(roomId = null, roomName = null) {
         const targetName = roomName || config.DEFAULT_ROOM_NAME;
 
-        // 如果有 roomId，优先使用 URL 直接导航（最可靠）
-        if (roomId !== null) {
+        // 确定有效的 roomId：优先使用传入的 roomId，否则使用 config 中的 DEFAULT_ROOM_ID
+        const effectiveRoomId = (roomId !== null && !isNaN(roomId) && roomId > 0)
+            ? roomId
+            : (config.DEFAULT_ROOM_ID !== null && !isNaN(config.DEFAULT_ROOM_ID) && config.DEFAULT_ROOM_ID > 0
+                ? config.DEFAULT_ROOM_ID
+                : null);
+
+        // 如果有有效的 roomId，优先使用 URL 直接导航（最可靠）
+        if (effectiveRoomId !== null) {
             try {
-                await this.enterRoomById(roomId);
+                await this.enterRoomById(effectiveRoomId);
                 return;
             } catch (err) {
-                logger.warn(`通过ID ${roomId} 进入房间最终失败: ${err.message}，将尝试使用名称`);
+                logger.warn(`通过ID ${effectiveRoomId} 进入房间最终失败: ${err.message}，将尝试使用名称`);
             }
         }
 
