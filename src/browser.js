@@ -96,24 +96,14 @@ class BrowserBot {
     async getRoomList() {
         await this.page.waitForSelector('.hallRoomItemCard', { timeout: 10000 });
         const rooms = await this.page.$$eval('.hallRoomItemCard', cards => {
-            return cards.map(card => {
-                let roomId = card.getAttribute('data-id') || card.id;
-                if (roomId && !/^\d+$/.test(roomId)) roomId = null;
-                if (!roomId) {
-                    const onclick = card.getAttribute('onclick');
-                    if (onclick) {
-                        const match = onclick.match(/room\?id=(\d+)/);
-                        if (match) roomId = parseInt(match[1]);
-                    }
-                } else {
-                    roomId = parseInt(roomId);
-                }
+            return cards.map((card, index) => {
                 const nameEl = card.querySelector('.hallRoomTitle p');
                 const name = nameEl ? nameEl.innerText.trim() : '';
-                return { id: roomId, name };
+                // 房间 ID 按显示顺序从 1 开始分配（React SPA 无 data-id 属性）
+                return { id: index + 1, name };
             });
         });
-        return rooms.filter(r => r.id !== null && r.name);
+        return rooms.filter(r => r.name);
     }
 
     async isInRoom() {
