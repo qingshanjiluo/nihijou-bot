@@ -1,0 +1,53 @@
+name: Run Nichijou Bot
+
+on:
+  workflow_dispatch:          # 手动触发
+  schedule:
+    - cron: '0 */2 * * *'    # 每2小时一次
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: nichijou-bot
+      cancel-in-progress: false
+    timeout-minutes: 240
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # 从 GitHub Secrets 创建 .env 文件（仓库中的 .env 仅包含占位符）
+      - name: Create .env from secrets
+        run: |
+          echo "AI_API_KEY=${{ secrets.AI_API_KEY }}" > .env
+          echo "AI_BASE_URL=${{ secrets.AI_BASE_URL }}" >> .env
+          echo "AI_MODEL=${{ secrets.AI_MODEL }}" >> .env
+          echo "LLM_TEMPERATURE=${{ secrets.LLM_TEMPERATURE || '0.7' }}" >> .env
+          echo "LLM_MAX_TOKENS=${{ secrets.LLM_MAX_TOKENS || '500' }}" >> .env
+          echo "BOT_NICKNAME=${{ secrets.BOT_NICKNAME }}" >> .env
+          echo "BOT_AVATAR_ID=${{ secrets.BOT_AVATAR_ID || '39' }}" >> .env
+          echo "DEFAULT_ROOM_NAME=${{ secrets.DEFAULT_ROOM_NAME }}" >> .env
+          echo "DEFAULT_ROOM_ID=${{ secrets.DEFAULT_ROOM_ID }}" >> .env
+          echo "HEADLESS=true" >> .env
+          echo "SLOW_MO=50" >> .env
+          echo "REPLY_COOLDOWN_SEC=${{ secrets.REPLY_COOLDOWN_SEC || '5' }}" >> .env
+          echo "MAX_CONTEXT_MESSAGES=${{ secrets.MAX_CONTEXT_MESSAGES || '20' }}" >> .env
+          echo "PLAN_DEFAULT_WAIT_SEC=${{ secrets.PLAN_DEFAULT_WAIT_SEC || '20' }}" >> .env
+          echo "RUN_DURATION_SEC=${{ secrets.RUN_DURATION_SEC || '0' }}" >> .env
+          echo "REPLY_TO_ALL=${{ secrets.REPLY_TO_ALL || 'true' }}" >> .env
+
+      - name: Run bot
+        run: node src/index.js

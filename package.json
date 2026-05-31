@@ -1,0 +1,32 @@
+{
+  "name": "nichijou-ai-bot",
+  "version": "1.0.0",
+  "description": "🤖 Nichijou.cn 聊天室 AI 机器人 - 基于 Playwright + LLM 的智能聊天机器人",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "dotenv": "^16.3.1",
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "nichijou",
+    "chatbot",
+    "playwright",
+    "ai",
+    "chatroom"
+  ],
+  "license": "MIT"
+}

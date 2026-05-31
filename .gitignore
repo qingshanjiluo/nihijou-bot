@@ -1,0 +1,8 @@
+node_modules/
+logs/
+.env
+*.log
+.DS_Store
+bot.pid
+playwright-report/
+test-results/

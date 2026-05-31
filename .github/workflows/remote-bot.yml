@@ -1,0 +1,36 @@
+name: Remote Control Nichijou Bot
+
+on:
+  schedule:
+    - cron: '0 22 * * *'   # UTC 22:00 = Beijing 06:00
+    - cron: '0 10 * * *'   # UTC 10:00 = Beijing 18:00
+  workflow_dispatch:         # 允许手动触发
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start bot at 06:00
+        if: github.event.schedule == '0 22 * * *'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/nichijou-ai-bot
+            source .env
+            nohup node src/index.js > bot.log 2>&1 &
+            echo $! > bot.pid
+      - name: Stop bot at 18:00
+        if: github.event.schedule == '0 10 * * *'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            if [ -f /home/ubuntu/nichijou-ai-bot/bot.pid ]; then
+              kill $(cat /home/ubuntu/nichijou-ai-bot/bot.pid)
+              rm /home/ubuntu/nichijou-ai-bot/bot.pid
+            fi
